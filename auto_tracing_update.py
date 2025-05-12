@@ -1,13 +1,12 @@
-import requests
 import logging
 import pandas as pd
 from datetime import datetime
 
-
+# إعداد اللوق
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
+# مفتاح API
 API_KEY = "K-CBC9E418-8984-4176-A285-0F33D699285A"
 
 def track_shipment(number_to_track):
@@ -17,7 +16,10 @@ def track_shipment(number_to_track):
 
     try:
         response = requests.get(url, json=payload, headers=headers, timeout=30)
-        logger.info(f"Response code: {response.status_code}")
+        logger.info(f"\n--- Response code: {response.status_code} for {number_to_track} ---")
+
+        # طباعة الرد الخام بالكامل من API
+        logger.info(f"Full API response for {number_to_track}:\n{response.text}")
 
         if response.status_code == 200:
             data = response.json().get("data", {})
@@ -47,18 +49,18 @@ def track_shipment(number_to_track):
 def update_excel(file_path):
     df = pd.read_excel(file_path)
 
-    # تأكد من الأعمدة الأساسية موجودة
+    # تأكد من الأعمدة
     for col in ["POL", "POD", "Status", "LastUpdated"]:
         if col not in df.columns:
             df[col] = ""
 
     for i in range(len(df)):
         container = str(df.loc[i, "ContainsNumber"]).strip() if not pd.isna(df.loc[i, "ContainsNumber"]) else ""
-        booking = str(df.loc[i, "BookingNumber "]).strip() if not pd.isna(df.loc[i, "BookingNumber "]) else ""
+        booking = str(df.loc[i, "BookingNumber"]).strip() if not pd.isna(df.loc[i, "BookingNumber"]) else ""
 
         tracking_number = booking if booking else container
         if not tracking_number:
-            logger.info(f"Row {i}: No tracking number found, skipping.")
+            logger.info(f"Row {i}: No tracking number, skipped.")
             continue
 
         pol, pod, status, last_updated = track_shipment(tracking_number)
@@ -70,12 +72,8 @@ def update_excel(file_path):
     df.to_excel(file_path, index=False)
     logger.info("Excel file updated successfully.")
 
-
+# تشغيل التحديث
 update_excel("TrackingSheet.xlsx")
 
-
-
-# تشغيل الكود
-update_excel("TrackingSheet.xlsx")
 
 
