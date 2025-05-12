@@ -1,5 +1,4 @@
 import requests
-This Message is from an External Domain (outside Ma’aden) if this Email is Suspicious, please Click on "Report Phish" button. 
 import os
 import io
 import logging
