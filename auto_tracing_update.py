@@ -1,3 +1,4 @@
+import requests
 import logging
 import pandas as pd
 from datetime import datetime
@@ -17,13 +18,10 @@ def track_shipment(number_to_track):
     try:
         response = requests.get(url, json=payload, headers=headers, timeout=30)
         logger.info(f"\n--- Response code: {response.status_code} for {number_to_track} ---")
-
-        # طباعة الرد الخام بالكامل من API
         logger.info(f"Full API response for {number_to_track}:\n{response.text}")
 
         if response.status_code == 200:
             data = response.json().get("data", {})
-
             metadata = data.get("metadata", {})
             route = data.get("route", {})
             locations = data.get("locations", [])
@@ -39,24 +37,28 @@ def track_shipment(number_to_track):
             logger.info(f"{number_to_track} | POL: {pol} | POD: {pod} | Status: {status}")
             return pol, pod, status, last_updated
         else:
-            logger.warning(f"Failed for {number_to_track}")
             return "", "", "Not Found", datetime.now().strftime("%Y-%m-%d %H:%M")
 
     except Exception as e:
         logger.error(f"Exception for {number_to_track}: {e}")
         return "", "", "Error", datetime.now().strftime("%Y-%m-%d %H:%M")
 
+
 def update_excel(file_path):
     df = pd.read_excel(file_path)
 
-    # تأكد من الأعمدة
-    for col in ["POL", "POD", "Status", "LastUpdated"]:
+    # طباعة الأعمدة الموجودة فعليًا
+    logger.info(f"Actual column names: {list(df.columns)}")
+
+    # التأكد من وجود الأعمدة المطلوبة
+    required_cols = ["ContainsNumber", "BookingNumber", "POL", "POD", "Status", "LastUpdated"]
+    for col in required_cols:
         if col not in df.columns:
             df[col] = ""
 
     for i in range(len(df)):
-        container = str(df.loc[i, "ContainsNumber"]).strip() if not pd.isna(df.loc[i, "BookingNumber "]) else ""
-        booking = str(df.loc[i, "BookingNumber"]).strip() if not pd.isna(df.loc[i, "BookingNumber "]) else ""
+        container = str(df.loc[i, "ContainsNumber"]).strip() if not pd.isna(df.loc[i, "ContainsNumber"]) else ""
+        booking = str(df.loc[i, "BookingNumber"]).strip() if not pd.isna(df.loc[i, "BookingNumber"]) else ""
 
         tracking_number = booking if booking else container
         if not tracking_number:
@@ -72,8 +74,11 @@ def update_excel(file_path):
     df.to_excel(file_path, index=False)
     logger.info("Excel file updated successfully.")
 
+
 # تشغيل التحديث
 update_excel("TrackingSheet.xlsx")
+
+
 
 
 
