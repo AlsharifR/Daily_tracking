@@ -1,37 +1,27 @@
 on:
   schedule:
-    - cron: '0 5 * * *'  
-  workflow_dispatch:
+    - cron: "0 5 * * *"  # كل يوم الساعة 9 صباحًا UTC (12 الظهر بتوقيت السعودية)
+  workflow_dispatch:  # لتشغيله يدويًا
 
 jobs:
-  run-script:
+  track-from-sharepoint:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: "3.10"
 
-      - name: Install Python dependencies
+      - name: Install dependencies
         run: |
-          pip install requests pandas openpyxl xlrd
+          pip install pandas openpyxl requests Office365-REST-Python-Client
 
-      - name: Run script
-        run: python auto_tracing_update.py
-
-      - name: Commit and push updated Excel file
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add TrackingSheet.xlsx
-          git commit -m "Update Excel from GitHub Action"
-          git push
+      - name: Run tracking script
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-
-
+          SHAREPOINT_USERNAME: ${{ secrets.SHAREPOINT_USERNAME }}
+          SHAREPOINT_PASSWORD: ${{ secrets.SHAREPOINT_PASSWORD }}
+        run: python auto_tracing_update.py
