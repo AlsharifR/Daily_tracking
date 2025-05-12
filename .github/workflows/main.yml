@@ -23,4 +23,15 @@ jobs:
       - name: Run script
         run: python auto_tracing_update.py
 
+      - name: Commit and push updated Excel file
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add TrackingSheet.xlsx
+          git commit -m "Update Excel from GitHub Action"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+
 
