@@ -18,6 +18,6 @@ jobs:
           python-version: '3.10'
 
       - name: Run script
-        run: python script.py
+        run: python auto_tracing_update.py
 
 
