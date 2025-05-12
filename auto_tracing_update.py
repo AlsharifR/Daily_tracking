@@ -55,4 +55,4 @@ def update_excel(file_path):
     logger.info("Excel file updated.")
 
 # Ø´ØºÙ„ Ø§Ù„ÙƒÙˆØ¯
-update_excel(r"C:\Users\alsharifr\OneDrive - Saudi Arabian Mining Co. (MA'ADEN)\Desktop\TrackingSheet.xlsx")
+update_excel("TrackingSheet.xlsx")
