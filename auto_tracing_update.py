@@ -1,4 +1,7 @@
 import requests
+This Message is from an External Domain (outside Ma’aden) if this Email is Suspicious, please Click on "Report Phish" button. 
+import os
+import io
 import logging
 from datetime import datetime
 import pandas as pd
@@ -10,58 +13,67 @@ from office365.runtime.auth.authentication_context import AuthenticationContext
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# API
-API_KEY = "K-CBC9E418-8984-4176-A285-0F33D699285A"  
-# إعداد SharePoint
-SHAREPOINT_SITE = "https://maaden.sharepoint.com/:x:/s/IMC_MaterialHandlingTeam"
-SHAREPOINT_DOC_LIB = "Shared Documents"  # المكتبة
-EXCEL_FILE_NAME = "TrackingSheet.xlsx"  # اسم الملف
+# إعدادات API
+API_KEY = "K-CBC9E418-8984-4176-A285-0F33D699285A" 
 
-USERNAME = "AlsharifR@maaden.com.sa"  # عدّل هنا
-PASSWORD = "Magnesite@MH$1245"  # الأفضل وضعه في Secret
+# إعدادات SharePoint
+SHAREPOINT_SITE = "https://maaden.sharepoint.com/sites/IMC_MaterialHandlingTeam"
+SHAREPOINT_DOC_LIB = "Shared Documents"
+EXCEL_FILE_NAME = "TrackingSheet.xlsx"
 
-# تحميل وتحديث ملف الإكسل
-def get_excel_file(ctx):
-    response = ctx.web.get_file_by_server_relative_url(f"/sites/your-site-name/{SHAREPOINT_DOC_LIB}/{EXCEL_FILE_NAME}").download().execute_query()
-    return pd.read_excel(io.BytesIO(response.content))
+# بيانات الدخول من GitHub Secrets
+USERNAME = os.environ["SHAREPOINT_USERNAME"]
+PASSWORD = os.environ["SHAREPOINT_PASSWORD"]
 
-# رفع الملف المحدّث
-def upload_excel_file(ctx, df):
-    excel_stream = io.BytesIO()
-    df.to_excel(excel_stream, index=False)
-    excel_stream.seek(0)
-    ctx.web.get_folder_by_server_relative_url(f"/sites/your-site-name/{SHAREPOINT_DOC_LIB}").upload_file(EXCEL_FILE_NAME, excel_stream).execute_query()
-
-# الاتصال بـ API
-def track_shipment(number):
+def track_shipment(number_to_track):
     url = "https://tracking.searates.com/tracking"
     headers = {"Content-Type": "application/json"}
-    body = {"api_key": API_KEY, "number": number}
-    
+    payload = {"api_key": API_KEY, "number": number_to_track}
+
     try:
-        response = requests.get(url, json=body, headers=headers, timeout=30)
+        response = requests.get(url, json=payload, headers=headers, timeout=30)
+        logger.info(f"\n--- Response code: {response.status_code} for {number_to_track} ---")
+        logger.info(f"Full API response:\n{response.text}")
+
         if response.status_code == 200:
-            logger.info(f"Response: {response.text}")
             data = response.json().get("data", {})
-            meta = data.get("metadata", {})
+            metadata = data.get("metadata", {})
             route = data.get("route", {})
-            locs = data.get("locations", [])
+            locations = data.get("locations", [])
 
-            pol_idx = route.get("pol", {}).get("location", 0)
-            pod_idx = route.get("pod", {}).get("location", 0)
+            pol_num = route.get("pol", {}).get("location", 0)
+            pod_num = route.get("pod", {}).get("location", 0)
 
-            pol = locs[pol_idx - 1].get("name") if pol_idx and len(locs) >= pol_idx else ""
-            pod = locs[pod_idx - 1].get("name") if pod_idx and len(locs) >= pod_idx else ""
-            status = meta.get("status", "Unknown")
+            pol = locations[pol_num - 1].get("name") if pol_num and len(locations) >= pol_num else ""
+            pod = locations[pod_num - 1].get("name") if pod_num and len(locations) >= pod_num else ""
+            status = metadata.get("status", "Unknown")
             last_updated = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+            logger.info(f"{number_to_track} | POL: {pol} | POD: {pod} | Status: {status}")
             return pol, pod, status, last_updated
         else:
             return "", "", "Not Found", datetime.now().strftime("%Y-%m-%d %H:%M")
+
     except Exception as e:
-        logger.error(f"Error for {number}: {e}")
+        logger.error(f"Exception for {number_to_track}: {e}")
         return "", "", "Error", datetime.now().strftime("%Y-%m-%d %H:%M")
 
-# المعالجة الرئيسية
+def get_excel_file(ctx):
+    logger.info("Downloading Excel from SharePoint...")
+    response = ctx.web.get_file_by_server_relative_url(
+        f"/sites/IMC_MaterialHandlingTeam/{SHAREPOINT_DOC_LIB}/{EXCEL_FILE_NAME}"
+    ).download().execute_query()
+    return pd.read_excel(io.BytesIO(response.content))
+
+def upload_excel_file(ctx, df):
+    logger.info("Uploading updated Excel to SharePoint...")
+    excel_stream = io.BytesIO()
+    df.to_excel(excel_stream, index=False)
+    excel_stream.seek(0)
+    ctx.web.get_folder_by_server_relative_url(
+        f"/sites/IMC_MaterialHandlingTeam/{SHAREPOINT_DOC_LIB}"
+    ).upload_file(EXCEL_FILE_NAME, excel_stream).execute_query()
+
 def update_tracking():
     ctx_auth = AuthenticationContext(SHAREPOINT_SITE)
     if not ctx_auth.acquire_token_for_user(USERNAME, PASSWORD):
@@ -71,7 +83,9 @@ def update_tracking():
     ctx = ClientContext(SHAREPOINT_SITE, ctx_auth)
     df = get_excel_file(ctx)
 
-    # تأكد من الأعمدة
+    logger.info(f"Columns detected: {df.columns.tolist()}")
+
+    # تأكد من الأعمدة الأساسية
     for col in ["POL", "POD", "Status", "LastUpdated"]:
         if col not in df.columns:
             df[col] = ""
@@ -82,7 +96,7 @@ def update_tracking():
         tracking_number = booking if booking else container
 
         if not tracking_number:
-            logger.info(f"Row {i}: No tracking number. Skipped.")
+            logger.info(f"Row {i}: No tracking number, skipped.")
             continue
 
         pol, pod, status, last_updated = track_shipment(tracking_number)
@@ -92,9 +106,9 @@ def update_tracking():
         df.at[i, "LastUpdated"] = last_updated
 
     upload_excel_file(ctx, df)
-    logger.info("SharePoint Excel updated successfully.")
+    logger.info("Done! SharePoint Excel updated successfully.")
 
-# تشغيل
+# تشغيل البرنامج
 update_tracking()
 
 
