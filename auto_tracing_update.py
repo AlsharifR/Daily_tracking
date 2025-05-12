@@ -59,10 +59,12 @@ def track_shipment(number_to_track):
 
 def get_excel_file(ctx):
     logger.info("Downloading Excel from SharePoint...")
-    response = ctx.web.get_file_by_server_relative_url(
+    file = io.BytesIO()
+    ctx.web.get_file_by_server_relative_url(
         f"/sites/IMC_MaterialHandlingTeam/{SHAREPOINT_DOC_LIB}/{EXCEL_FILE_NAME}"
-    ).download().execute_query()
-    return pd.read_excel(io.BytesIO(response.content))
+    ).download(file).execute_query()
+    return pd.read_excel(file)
+
 
 def upload_excel_file(ctx, df):
     logger.info("Uploading updated Excel to SharePoint...")
