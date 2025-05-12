@@ -3,30 +3,30 @@ import logging
 import pandas as pd
 from datetime import datetime
 
-# Ø¥Ø¹Ø¯Ø§Ø¯ Ø§Ù„Ù„ÙˆÙ‚
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Ù…ÙØªØ§Ø¬ API
 API_KEY = "K-CBC9E418-8984-4176-A285-0F33D699285A"
 
 def track_shipment(number_to_track):
-    url = f"https://tracking.searates.com/tracking"
-    url_header = {"Content-Type": "application/json"}
-    url_body = {"api_key": API_KEY, "number": number_to_track}
+    url = "https://tracking.searates.com/tracking"
+    headers = {"Content-Type": "application/json"}
+    payload = {"api_key": API_KEY, "number": number_to_track}
 
-    response = requests.get(url, json=url_body, headers=url_header)
+    response = requests.get(url, json=payload, headers=headers)
 
     if response.status_code == 200:
         try:
-            data = response.json().get("data")
-            locations = data.get("locations")
-            pol_num = data.get("route").get("pol").get("location")
-            pod_num = data.get("route").get("pod").get("location")
+            logger.info(f"Raw response: {response.text}")
+            data = response.json().get("data", {})
+            locations = data.get("locations", [])
+            route = data.get("route", {})
+            pol_num = route.get("pol", {}).get("location", 0)
+            pod_num = route.get("pod", {}).get("location", 0)
 
-            pol = locations[pol_num - 1].get("name")
-            pod = locations[pod_num - 1].get("name")
-            status = data.get("metadata").get("status")
+            pol = locations[pol_num - 1].get("name") if pol_num > 0 and len(locations) >= pol_num else ""
+            pod = locations[pod_num - 1].get("name") if pod_num > 0 and len(locations) >= pod_num else ""
+            status = data.get("metadata", {}).get("status", "Unknown")
             last_updated = datetime.now().strftime("%Y-%m-%d %H:%M")
 
             logger.info(f"{number_to_track} | POL: {pol} | POD: {pod} | Status: {status}")
@@ -35,13 +35,15 @@ def track_shipment(number_to_track):
         except Exception as e:
             logger.info(f"Error parsing response for {number_to_track}: {e}")
             return "", "", "Error parsing", datetime.now().strftime("%Y-%m-%d %H:%M")
-
     else:
-        logger.info(f"Failed to track {number_to_track}")
+        logger.info(f"Failed to track {number_to_track}. Status code: {response.status_code}")
         return "", "", "Not Found", datetime.now().strftime("%Y-%m-%d %H:%M")
 
 def update_excel(file_path):
     df = pd.read_excel(file_path)
+
+    if "ContainsNumber" not in df.columns:
+        raise Exception("Missing column: 'ContainsNumber'")
 
     for i in range(len(df)):
         number = df.loc[i, "ContainsNumber"]
@@ -54,5 +56,7 @@ def update_excel(file_path):
     df.to_excel(file_path, index=False)
     logger.info("Excel file updated.")
 
-# Ø´ØºÙ„ Ø§Ù„ÙƒÙˆØ¯
+# تشغيل الكود
 update_excel("TrackingSheet.xlsx")
+
+
