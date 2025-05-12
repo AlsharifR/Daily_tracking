@@ -55,7 +55,7 @@ def update_excel(file_path):
             df[col] = ""
 
     for i in range(len(df)):
-        container = str(df.loc[i, "ContainsNumber"]).strip() if not pd.isna(df.loc[i, "ContainsNumber "]) else ""
+        container = str(df.loc[i, "ContainsNumber"]).strip() if not pd.isna(df.loc[i, "BookingNumber "]) else ""
         booking = str(df.loc[i, "BookingNumber"]).strip() if not pd.isna(df.loc[i, "BookingNumber "]) else ""
 
         tracking_number = booking if booking else container
