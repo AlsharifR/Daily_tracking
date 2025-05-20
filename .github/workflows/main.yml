@@ -1,6 +1,6 @@
 on:
   schedule:
-    - cron: "0 5 * * *"  # كل يوم الساعة 9 صباحًا UTC (12 الظهر بتوقيت السعودية)
+    - cron: # "0 5 * * *"  # كل يوم الساعة 9 صباحًا UTC (12 الظهر بتوقيت السعودية)
   workflow_dispatch:  # لتشغيله يدويًا
 
 jobs:
@@ -24,4 +24,4 @@ jobs:
         env:
           SHAREPOINT_USERNAME: ${{ secrets.SHAREPOINT_USERNAME }}
           SHAREPOINT_PASSWORD: ${{ secrets.SHAREPOINT_PASSWORD }}
-        run: python auto_tracing_update.py
+        run: python auto_tracing_update.py 
